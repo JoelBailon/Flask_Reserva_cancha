@@ -1,0 +1,11 @@
+CREATE DATABASE flaskreservas;
+
+USE flaskreservas;
+
+CREATE TABLE reservations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    reservation_date DATE NOT NULL,
+    reservation_time TIME NOT NULL,
+    court_type VARCHAR(50) NOT NULL
+);

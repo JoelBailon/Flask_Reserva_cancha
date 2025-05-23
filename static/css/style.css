@@ -1,0 +1,81 @@
+/* static/css/style.css */
+
+body {
+    background-color: #006400; /* Verde oscuro tipo cancha de fútbol */
+    color: #000000; /* Letras negras */
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+h1, h2 {
+    color: #000000; /* Negras */
+}
+div.flash-messages p {
+    color: #FFF; /* Blanco para mensajes flash para que contrasten */
+    background-color: rgba(0, 100, 0, 0.8); /* Fondo semitransparente para mensajes */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+form {
+    background-color: rgba(255, 255, 255, 0.8); /* Fondo blanco semitransparente para el formulario */
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+form input[type="text"],
+form input[type="date"],
+form input[type="time"],
+form select {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+form button {
+    background-color: #000000; /* Botón negro */
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+form button:hover {
+    background-color: #333; /* Un poco más claro al pasar el ratón */
+}
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+ul li {
+    background-color: rgba(255, 255, 255, 0.8); /* Fondo blanco semitransparente para cada reserva */
+    margin-bottom: 10px;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+ul li a {
+    color: #0000FF; /* Azul para los enlaces */
+    text-decoration: none;
+    margin-left: 10px;
+}
+ul li a:hover {
+    text-decoration: underline;
+}
+
+/* Estilos específicos para edit.html si los necesitas, aunque aquí son similares */
+/* Para los formularios en edit.html */
+form label {
+    display: block;
+    margin-bottom: 5px;
+    color: #000000; /* Asegurar que las etiquetas sean negras */
+}
+form button {
+    margin-right: 10px; /* Separación entre botones en edit.html */
+}
