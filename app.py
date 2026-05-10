@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-import pymysql
-from datetime import date, time, timedelta
-import os
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
@@ -10,20 +8,48 @@ app = Flask(__name__)
 # =========================
 app.secret_key = 'mysecretkey'
 
+# SQLITE
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservas.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
 
 # =========================
-# FUNCIÓN DE CONEXIÓN
+# MODELO
 # =========================
-def get_connection():
+class Reservation(db.Model):
 
-    return pymysql.connect(
-        host=os.getenv("mysql_host", "localhost"),
-        user=os.getenv("mysql_user", "root"),
-        password=os.getenv("mysql_password", ""),
-        database=os.getenv("mysql_db", "flaskreservas"),
-        port=int(os.getenv("mysql_port", 3306)),
-        cursorclass=pymysql.cursors.DictCursor
+    id = db.Column(
+        db.Integer,
+        primary_key=True
     )
+
+    customer_name = db.Column(
+        db.String(100),
+        nullable=False
+    )
+
+    reservation_date = db.Column(
+        db.String(20),
+        nullable=False
+    )
+
+    reservation_time = db.Column(
+        db.String(20),
+        nullable=False
+    )
+
+    court_type = db.Column(
+        db.String(50),
+        nullable=False
+    )
+
+
+# =========================
+# CREAR TABLAS
+# =========================
+with app.app_context():
+    db.create_all()
 
 
 # =========================
@@ -32,52 +58,15 @@ def get_connection():
 @app.route('/')
 def index():
 
-    try:
+    reservations = Reservation.query.order_by(
+        Reservation.reservation_date,
+        Reservation.reservation_time
+    ).all()
 
-        conexion = get_connection()
-
-        cur = conexion.cursor()
-
-        cur.execute("""
-            SELECT * FROM reservations
-            ORDER BY reservation_date, reservation_time
-        """)
-
-        data = cur.fetchall()
-
-        processed_data = []
-
-        for row in data:
-
-            if isinstance(row['reservation_time'], timedelta):
-
-                total_seconds = int(
-                    row['reservation_time'].total_seconds()
-                )
-
-                hours, remainder = divmod(total_seconds, 3600)
-
-                minutes, seconds = divmod(remainder, 60)
-
-                row['reservation_time'] = time(
-                    hours,
-                    minutes,
-                    seconds
-                )
-
-            processed_data.append(row)
-
-        cur.close()
-        conexion.close()
-
-        return render_template(
-            'index.html',
-            reservations=processed_data
-        )
-
-    except Exception as e:
-
-        return f"Error en INDEX: {e}"
+    return render_template(
+        'index.html',
+        reservations=reservations
+    )
 
 
 # =========================
@@ -88,181 +77,84 @@ def add_reservation():
 
     try:
 
-        customer_name = request.form['customer_name']
+        reservation = Reservation(
 
-        reservation_date = date.fromisoformat(
-            request.form['reservation_date']
+            customer_name=request.form['customer_name'],
+
+            reservation_date=request.form['reservation_date'],
+
+            reservation_time=request.form['reservation_time'],
+
+            court_type=request.form['court_type']
         )
 
-        reservation_time = time.fromisoformat(
-            request.form['reservation_time']
-        )
+        db.session.add(reservation)
 
-        court_type = request.form['court_type']
-
-        conexion = get_connection()
-
-        cur = conexion.cursor()
-
-        cur.execute("""
-            INSERT INTO reservations
-            (
-                customer_name,
-                reservation_date,
-                reservation_time,
-                court_type
-            )
-            VALUES (%s, %s, %s, %s)
-        """, (
-            customer_name,
-            reservation_date,
-            reservation_time,
-            court_type
-        ))
-
-        conexion.commit()
-
-        cur.close()
-        conexion.close()
+        db.session.commit()
 
         flash('Reserva agregada correctamente')
 
     except Exception as e:
 
-        flash(f'Error al agregar: {e}', 'error')
+        flash(f'Error: {e}')
 
     return redirect(url_for('index'))
 
 
 # =========================
-# ELIMINAR RESERVA
+# ELIMINAR
 # =========================
 @app.route('/delete_reservation/<id>')
 def delete_reservation(id):
 
-    try:
+    reservation = Reservation.query.get(id)
 
-        conexion = get_connection()
+    if reservation:
 
-        cur = conexion.cursor()
+        db.session.delete(reservation)
 
-        cur.execute(
-            'DELETE FROM reservations WHERE id = %s',
-            (id,)
-        )
-
-        conexion.commit()
-
-        cur.close()
-        conexion.close()
+        db.session.commit()
 
         flash('Reserva eliminada correctamente')
-
-    except Exception as e:
-
-        flash(f'Error al eliminar: {e}', 'error')
 
     return redirect(url_for('index'))
 
 
 # =========================
-# EDITAR RESERVA
+# EDITAR
 # =========================
 @app.route('/edit_reservation/<id>')
 def edit_reservation(id):
 
-    try:
+    reservation = Reservation.query.get(id)
 
-        conexion = get_connection()
-
-        cur = conexion.cursor()
-
-        cur.execute(
-            'SELECT * FROM reservations WHERE id = %s',
-            (id,)
-        )
-
-        data = cur.fetchone()
-
-        if data and isinstance(data['reservation_time'], timedelta):
-
-            total_seconds = int(
-                data['reservation_time'].total_seconds()
-            )
-
-            hours, remainder = divmod(total_seconds, 3600)
-
-            minutes, seconds = divmod(remainder, 60)
-
-            data['reservation_time'] = time(
-                hours,
-                minutes,
-                seconds
-            )
-
-        cur.close()
-        conexion.close()
-
-        return render_template(
-            'edit.html',
-            reservation=data
-        )
-
-    except Exception as e:
-
-        return f"Error al editar: {e}"
+    return render_template(
+        'edit.html',
+        reservation=reservation
+    )
 
 
 # =========================
-# ACTUALIZAR RESERVA
+# ACTUALIZAR
 # =========================
 @app.route('/update_reservation/<id>', methods=['POST'])
 def update_reservation(id):
 
-    try:
+    reservation = Reservation.query.get(id)
 
-        customer_name = request.form['customer_name']
+    if reservation:
 
-        reservation_date = date.fromisoformat(
-            request.form['reservation_date']
-        )
+        reservation.customer_name = request.form['customer_name']
 
-        reservation_time = time.fromisoformat(
-            request.form['reservation_time']
-        )
+        reservation.reservation_date = request.form['reservation_date']
 
-        court_type = request.form['court_type']
+        reservation.reservation_time = request.form['reservation_time']
 
-        conexion = get_connection()
+        reservation.court_type = request.form['court_type']
 
-        cur = conexion.cursor()
-
-        cur.execute("""
-            UPDATE reservations
-            SET
-                customer_name = %s,
-                reservation_date = %s,
-                reservation_time = %s,
-                court_type = %s
-            WHERE id = %s
-        """, (
-            customer_name,
-            reservation_date,
-            reservation_time,
-            court_type,
-            id
-        ))
-
-        conexion.commit()
-
-        cur.close()
-        conexion.close()
+        db.session.commit()
 
         flash('Reserva actualizada correctamente')
-
-    except Exception as e:
-
-        flash(f'Error al actualizar: {e}', 'error')
 
     return redirect(url_for('index'))
 
