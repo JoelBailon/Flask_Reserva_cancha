@@ -1,3 +1,3 @@
 Flask
-pymysql
+Flask-SQLAlchemy
 gunicorn
