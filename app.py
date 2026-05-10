@@ -1,55 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
+import pymysql
+from datetime import datetime
+import os
 
 app = Flask(__name__)
+app.secret_key = "secretkey"
+
 
 # =========================
-# CONFIGURACIÓN
+# CONEXIÓN MYSQL
 # =========================
-app.secret_key = 'mysecretkey'
+def get_connection():
 
-# SQLITE
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservas.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-
-# =========================
-# MODELO
-# =========================
-class Reservation(db.Model):
-
-    id = db.Column(
-        db.Integer,
-        primary_key=True
+    return pymysql.connect(
+        host=os.getenv("MYSQL_HOST"),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DATABASE"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        cursorclass=pymysql.cursors.DictCursor
     )
-
-    customer_name = db.Column(
-        db.String(100),
-        nullable=False
-    )
-
-    reservation_date = db.Column(
-        db.String(20),
-        nullable=False
-    )
-
-    reservation_time = db.Column(
-        db.String(20),
-        nullable=False
-    )
-
-    court_type = db.Column(
-        db.String(50),
-        nullable=False
-    )
-
-
-# =========================
-# CREAR TABLAS
-# =========================
-with app.app_context():
-    db.create_all()
 
 
 # =========================
@@ -58,15 +28,29 @@ with app.app_context():
 @app.route('/')
 def index():
 
-    reservations = Reservation.query.order_by(
-        Reservation.reservation_date,
-        Reservation.reservation_time
-    ).all()
+    try:
 
-    return render_template(
-        'index.html',
-        reservations=reservations
-    )
+        conexion = get_connection()
+        cur = conexion.cursor()
+
+        cur.execute("""
+            SELECT * FROM reservations
+            ORDER BY reservation_date, reservation_time
+        """)
+
+        reservations = cur.fetchall()
+
+        cur.close()
+        conexion.close()
+
+        return render_template(
+            'index.html',
+            reservations=reservations
+        )
+
+    except Exception as e:
+
+        return f"Error en INDEX: {e}"
 
 
 # =========================
@@ -77,20 +61,34 @@ def add_reservation():
 
     try:
 
-        reservation = Reservation(
+        customer_name = request.form['customer_name']
+        reservation_date = request.form['reservation_date']
+        reservation_time = request.form['reservation_time']
+        court_type = request.form['court_type']
 
-            customer_name=request.form['customer_name'],
+        conexion = get_connection()
+        cur = conexion.cursor()
 
-            reservation_date=request.form['reservation_date'],
+        cur.execute("""
+            INSERT INTO reservations
+            (
+                customer_name,
+                reservation_date,
+                reservation_time,
+                court_type
+            )
+            VALUES (%s, %s, %s, %s)
+        """, (
+            customer_name,
+            reservation_date,
+            reservation_time,
+            court_type
+        ))
 
-            reservation_time=request.form['reservation_time'],
+        conexion.commit()
 
-            court_type=request.form['court_type']
-        )
-
-        db.session.add(reservation)
-
-        db.session.commit()
+        cur.close()
+        conexion.close()
 
         flash('Reserva agregada correctamente')
 
@@ -104,18 +102,29 @@ def add_reservation():
 # =========================
 # ELIMINAR
 # =========================
-@app.route('/delete_reservation/<id>')
+@app.route('/delete_reservation/<int:id>')
 def delete_reservation(id):
 
-    reservation = Reservation.query.get(id)
+    try:
 
-    if reservation:
+        conexion = get_connection()
+        cur = conexion.cursor()
 
-        db.session.delete(reservation)
+        cur.execute(
+            'DELETE FROM reservations WHERE id = %s',
+            (id,)
+        )
 
-        db.session.commit()
+        conexion.commit()
 
-        flash('Reserva eliminada correctamente')
+        cur.close()
+        conexion.close()
+
+        flash('Reserva eliminada')
+
+    except Exception as e:
+
+        flash(f'Error: {e}')
 
     return redirect(url_for('index'))
 
@@ -123,38 +132,76 @@ def delete_reservation(id):
 # =========================
 # EDITAR
 # =========================
-@app.route('/edit_reservation/<id>')
+@app.route('/edit_reservation/<int:id>')
 def edit_reservation(id):
 
-    reservation = Reservation.query.get(id)
+    try:
 
-    return render_template(
-        'edit.html',
-        reservation=reservation
-    )
+        conexion = get_connection()
+        cur = conexion.cursor()
+
+        cur.execute(
+            'SELECT * FROM reservations WHERE id = %s',
+            (id,)
+        )
+
+        reservation = cur.fetchone()
+
+        cur.close()
+        conexion.close()
+
+        return render_template(
+            'edit.html',
+            reservation=reservation
+        )
+
+    except Exception as e:
+
+        return f"Error: {e}"
 
 
 # =========================
 # ACTUALIZAR
 # =========================
-@app.route('/update_reservation/<id>', methods=['POST'])
+@app.route('/update_reservation/<int:id>', methods=['POST'])
 def update_reservation(id):
 
-    reservation = Reservation.query.get(id)
+    try:
 
-    if reservation:
+        customer_name = request.form['customer_name']
+        reservation_date = request.form['reservation_date']
+        reservation_time = request.form['reservation_time']
+        court_type = request.form['court_type']
 
-        reservation.customer_name = request.form['customer_name']
+        conexion = get_connection()
+        cur = conexion.cursor()
 
-        reservation.reservation_date = request.form['reservation_date']
+        cur.execute("""
+            UPDATE reservations
+            SET
+                customer_name=%s,
+                reservation_date=%s,
+                reservation_time=%s,
+                court_type=%s
+            WHERE id=%s
+        """, (
+            customer_name,
+            reservation_date,
+            reservation_time,
+            court_type,
+            id
+        ))
 
-        reservation.reservation_time = request.form['reservation_time']
+        conexion.commit()
 
-        reservation.court_type = request.form['court_type']
+        cur.close()
+        conexion.close()
 
-        db.session.commit()
+        flash('Reserva actualizada')
 
-        flash('Reserva actualizada correctamente')
+    except Exception as e:
+
+        flash(f'Error: {e}')
 
     return redirect(url_for('index'))
 
@@ -164,5 +211,3 @@ def update_reservation(id):
 # =========================
 if __name__ == '__main__':
     app.run(debug=True)
-
-app = app
