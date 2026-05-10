@@ -5,24 +5,37 @@ import os
 
 app = Flask(__name__)
 
-# Clave secreta
+# =========================
+# CONFIGURACIÓN
+# =========================
 app.secret_key = 'mysecretkey'
 
-# Conexión MySQL
-conexion = pymysql.connect(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    user=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    database=os.getenv("MYSQL_DB", "flaskreservas"),
-    cursorclass=pymysql.cursors.DictCursor
-)
+
+# =========================
+# FUNCIÓN DE CONEXIÓN
+# =========================
+def get_connection():
+
+    return pymysql.connect(
+        host=os.getenv("mysql_host", "localhost"),
+        user=os.getenv("mysql_user", "root"),
+        password=os.getenv("mysql_password", ""),
+        database=os.getenv("mysql_db", "flaskreservas"),
+        port=int(os.getenv("mysql_port", 3306)),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
 
 # =========================
 # INICIO
 # =========================
 @app.route('/')
 def index():
+
     try:
+
+        conexion = get_connection()
+
         cur = conexion.cursor()
 
         cur.execute("""
@@ -32,22 +45,30 @@ def index():
 
         data = cur.fetchall()
 
-        # Procesar horas
         processed_data = []
 
         for row in data:
 
             if isinstance(row['reservation_time'], timedelta):
 
-                total_seconds = int(row['reservation_time'].total_seconds())
+                total_seconds = int(
+                    row['reservation_time'].total_seconds()
+                )
 
                 hours, remainder = divmod(total_seconds, 3600)
 
                 minutes, seconds = divmod(remainder, 60)
 
-                row['reservation_time'] = time(hours, minutes, seconds)
+                row['reservation_time'] = time(
+                    hours,
+                    minutes,
+                    seconds
+                )
 
             processed_data.append(row)
+
+        cur.close()
+        conexion.close()
 
         return render_template(
             'index.html',
@@ -55,7 +76,8 @@ def index():
         )
 
     except Exception as e:
-        return f"Error: {e}"
+
+        return f"Error en INDEX: {e}"
 
 
 # =========================
@@ -64,16 +86,21 @@ def index():
 @app.route('/add_reservation', methods=['POST'])
 def add_reservation():
 
-    customer_name = request.form['customer_name']
-    reservation_date_str = request.form['reservation_date']
-    reservation_time_str = request.form['reservation_time']
-    court_type = request.form['court_type']
-
     try:
 
-        reservation_date = date.fromisoformat(reservation_date_str)
+        customer_name = request.form['customer_name']
 
-        reservation_time = time.fromisoformat(reservation_time_str)
+        reservation_date = date.fromisoformat(
+            request.form['reservation_date']
+        )
+
+        reservation_time = time.fromisoformat(
+            request.form['reservation_time']
+        )
+
+        court_type = request.form['court_type']
+
+        conexion = get_connection()
 
         cur = conexion.cursor()
 
@@ -95,21 +122,14 @@ def add_reservation():
 
         conexion.commit()
 
-        flash('Reserva agregada satisfactoriamente')
+        cur.close()
+        conexion.close()
 
-    except ValueError:
-
-        flash(
-            'Formato de fecha u hora incorrecto',
-            'error'
-        )
+        flash('Reserva agregada correctamente')
 
     except Exception as e:
 
-        flash(
-            f'Error al agregar reserva: {e}',
-            'error'
-        )
+        flash(f'Error al agregar: {e}', 'error')
 
     return redirect(url_for('index'))
 
@@ -122,6 +142,8 @@ def delete_reservation(id):
 
     try:
 
+        conexion = get_connection()
+
         cur = conexion.cursor()
 
         cur.execute(
@@ -131,14 +153,14 @@ def delete_reservation(id):
 
         conexion.commit()
 
+        cur.close()
+        conexion.close()
+
         flash('Reserva eliminada correctamente')
 
     except Exception as e:
 
-        flash(
-            f'Error al eliminar: {e}',
-            'error'
-        )
+        flash(f'Error al eliminar: {e}', 'error')
 
     return redirect(url_for('index'))
 
@@ -146,10 +168,12 @@ def delete_reservation(id):
 # =========================
 # EDITAR RESERVA
 # =========================
-@app.route('/edit_reservation/<id>', methods=['GET'])
+@app.route('/edit_reservation/<id>')
 def edit_reservation(id):
 
     try:
+
+        conexion = get_connection()
 
         cur = conexion.cursor()
 
@@ -176,6 +200,9 @@ def edit_reservation(id):
                 seconds
             )
 
+        cur.close()
+        conexion.close()
+
         return render_template(
             'edit.html',
             reservation=data
@@ -183,7 +210,7 @@ def edit_reservation(id):
 
     except Exception as e:
 
-        return f"Error: {e}"
+        return f"Error al editar: {e}"
 
 
 # =========================
@@ -192,20 +219,21 @@ def edit_reservation(id):
 @app.route('/update_reservation/<id>', methods=['POST'])
 def update_reservation(id):
 
-    customer_name = request.form['customer_name']
-    reservation_date_str = request.form['reservation_date']
-    reservation_time_str = request.form['reservation_time']
-    court_type = request.form['court_type']
-
     try:
 
+        customer_name = request.form['customer_name']
+
         reservation_date = date.fromisoformat(
-            reservation_date_str
+            request.form['reservation_date']
         )
 
         reservation_time = time.fromisoformat(
-            reservation_time_str
+            request.form['reservation_time']
         )
+
+        court_type = request.form['court_type']
+
+        conexion = get_connection()
 
         cur = conexion.cursor()
 
@@ -227,21 +255,14 @@ def update_reservation(id):
 
         conexion.commit()
 
+        cur.close()
+        conexion.close()
+
         flash('Reserva actualizada correctamente')
-
-    except ValueError:
-
-        flash(
-            'Formato de fecha u hora incorrecto',
-            'error'
-        )
 
     except Exception as e:
 
-        flash(
-            f'Error al actualizar: {e}',
-            'error'
-        )
+        flash(f'Error al actualizar: {e}', 'error')
 
     return redirect(url_for('index'))
 
