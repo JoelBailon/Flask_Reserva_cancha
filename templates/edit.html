@@ -1,31 +1,93 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
+
     <title>Editar Reserva</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
 </head>
+
 <body>
+
     <h1>Editar Reserva</h1>
-    <form action="/update_reservation/{{ reservation[0] }}" method="POST">
-        <label for="customer_name">Nombre del Cliente:</label><br>
-        <input type="text" name="customer_name" id="customer_name" value="{{ reservation[1] }}"><br>
 
-        <label for="reservation_date">Fecha de Reserva:</label><br>
-        <input type="date" name="reservation_date" id="reservation_date" value="{{ reservation[2].isoformat() }}"><br>
+    <form action="/update_reservation/{{ reservation.id }}"
+          method="POST">
 
-        <label for="reservation_time">Hora de Reserva:</label><br>
-        <input type="time" name="reservation_time" id="reservation_time" value="{{ reservation[3].strftime('%H:%M') }}"><br>
+        <label>Nombre del Cliente:</label><br>
 
-        <label for="court_type">Tipo de Cancha:</label><br>
-        <select name="court_type" id="court_type">
-            <option value="7 jugadores" {% if reservation[4] == '7 jugadores' %}selected{% endif %}>Cancha de 7 jugadores</option>
-            <option value="9 jugadores" {% if reservation[4] == '9 jugadores' %}selected{% endif %}>Cancha de 9 jugadores</option>
-            <option value="11 jugadores" {% if reservation[4] == '11 jugadores' %}selected{% endif %}>Cancha de 11 jugadores</option>
-        </select><br><br>
+        <input type="text"
+               name="customer_name"
+               value="{{ reservation.customer_name }}"
+               required>
 
-        <button type="submit">Actualizar Reserva</button>
-        <a href="/">Cancelar</a>
+        <br><br>
+
+        <label>Fecha:</label><br>
+
+        <input type="date"
+               name="reservation_date"
+               value="{{ reservation.reservation_date }}"
+               required>
+
+        <br><br>
+
+        <label>Hora:</label><br>
+
+        <input type="time"
+               name="reservation_time"
+               value="{{ reservation.reservation_time }}"
+               required>
+
+        <br><br>
+
+        <label>Tipo de Cancha:</label><br>
+
+        <select name="court_type" required>
+
+            <option value="7 jugadores"
+                {% if reservation.court_type == '7 jugadores' %}
+                    selected
+                {% endif %}
+            >
+                Cancha de 7 jugadores
+            </option>
+
+            <option value="9 jugadores"
+                {% if reservation.court_type == '9 jugadores' %}
+                    selected
+                {% endif %}
+            >
+                Cancha de 9 jugadores
+            </option>
+
+            <option value="11 jugadores"
+                {% if reservation.court_type == '11 jugadores' %}
+                    selected
+                {% endif %}
+            >
+                Cancha de 11 jugadores
+            </option>
+
+        </select>
+
+        <br><br>
+
+        <button type="submit">
+            Actualizar Reserva
+        </button>
+
+        <a href="/">
+            Cancelar
+        </a>
+
     </form>
+
 </body>
+
 </html>
